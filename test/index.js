@@ -54,8 +54,8 @@ test('asymmetric encryption & decryption using a pass hash', t => {
     const plain = 'hi there bub'
     const encrypted = crypto.encrypt(pwhash.secret, plain)
     t.assert(encrypted.length > plain.length)
-    t.throws(() => crypto.decrypt('encrypted', fill(Buffer.alloc(32), 'lo')))
-    const decrypted = crypto.decrypt(encrypted, pwhash.secret)
+    t.throws(() => crypto.decrypt(fill(Buffer.alloc(32), 'badpass'), encrypted))
+    const decrypted = crypto.decrypt(pwhash.secret, encrypted)
     t.strictEqual(decrypted, plain)
     t.end()
   })
@@ -67,18 +67,18 @@ test('send and open an encrypted (and signed) message using pubkeys', t => {
   const invalidReceiver = crypto.createBoxKeypair(fill(Buffer.alloc(32), 'def'))
   const invalidSender = crypto.createBoxKeypair(fill(Buffer.alloc(32), 'ghi'))
   const msg = 'hola mundo y buenos dias a todas personas que viven en este realidad'
-  const encrypted = crypto.sendEncrypted(msg, receiver.pk, sender.sk)
+  const encrypted = crypto.createBox(msg, receiver.pk, sender.sk)
 
-  t.throws(() => crypto.openEncrypted(encrypted, sender.pk, invalidReceiver.sk), 'Throws on invalid receiver secret key')
-  t.throws(() => crypto.openEncrypted(encrypted, invalidSender.pk, receiver.sk), 'Throws on invalid sender public key')
-  const encryptedBadSig = crypto.sendEncrypted(msg, receiver.pk, invalidSender.sk)
-  t.throws(() => crypto.openEncrypted(encryptedBadSig, sender.pk, receiver.sk), 'Throws on invalid sender secret key')
+  t.throws(() => crypto.openBox(encrypted, sender.pk, invalidReceiver.sk), 'Throws on invalid receiver secret key')
+  t.throws(() => crypto.openBox(encrypted, invalidSender.pk, receiver.sk), 'Throws on invalid sender public key')
+  const encryptedBadSig = crypto.createBox(msg, receiver.pk, invalidSender.sk)
+  t.throws(() => crypto.openBox(encryptedBadSig, sender.pk, receiver.sk), 'Throws on invalid sender secret key')
 
-  const decrypted = crypto.openEncrypted(encrypted, sender.pk, receiver.sk)
+  const decrypted = crypto.openBox(encrypted, sender.pk, receiver.sk)
   t.strictEqual(decrypted, msg)
 
-  const encrypted2 = crypto.sendEncrypted(decrypted, receiver.pk, sender.sk)
-  const decrypted2 = crypto.openEncrypted(encrypted2, sender.pk, receiver.sk)
+  const encrypted2 = crypto.createBox(decrypted, receiver.pk, sender.sk)
+  const decrypted2 = crypto.openBox(encrypted2, sender.pk, receiver.sk)
   t.notDeepEqual(encrypted, encrypted2, 'multiple encryptions produce different nonce/ciphers')
   t.strictEqual(decrypted, decrypted2, 'multiple encryptions/decryptions produce same plaintext')
 
