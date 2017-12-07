@@ -48,7 +48,7 @@ crypto.hashPass = function hashPass (pass, salt, callback) {
     function (err) {
       if (err) return callback(err)
       const saltStr = salt.toString('hex')
-      const secretStr = salt.toString('hex')
+      const secretStr = secret.toString('hex')
       salt.fill(0)
       secret.fill(0)
       passBuf.fill(0)
