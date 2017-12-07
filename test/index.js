@@ -2,16 +2,16 @@ const crypto = require('../')
 const test = require('tape')
 const fill = require('buffer-fill')
 
-test('create signing keypairs', t => {
-  const {pk, sk} = crypto.createSignKeypair(fill(Buffer.alloc(32), 'xyz'))
-  t.strictEqual(pk.length, 32)
-  t.strictEqual(sk.length, 64)
+test('.createSignKeypair to create signing keypairs', t => {
+  const {pk, sk} = crypto.createSignKeypair(crypto.id(32))
+  t.strictEqual(pk.length, 64)
+  t.strictEqual(sk.length, 128)
   t.end()
 })
 
-test('sign and open a message using signing keypairs', t => {
-  const {pk, sk} = crypto.createSignKeypair(fill(Buffer.alloc(32), 'xyz'))
-  const keys2 = crypto.createSignKeypair(fill(Buffer.alloc(32), 'abc'))
+test('.sign and .openSigned to sign and open a message using signing keypairs', t => {
+  const {pk, sk} = crypto.createSignKeypair(crypto.id(32))
+  const keys2 = crypto.createSignKeypair(crypto.id(32))
   const msg = 'hallo welt'
   const signed = crypto.sign(msg, sk)
   const unsigned = crypto.openSigned(signed, pk)
@@ -20,34 +20,34 @@ test('sign and open a message using signing keypairs', t => {
   t.end()
 })
 
-test('create encryption keypairs', t => {
+test('.createBoxKeypair encryption keypairs', t => {
   const {pk, sk} = crypto.createBoxKeypair(fill(Buffer.alloc(32), 'xyz'))
-  t.strictEqual(pk.length, 32)
-  t.strictEqual(sk.length, 32)
+  t.strictEqual(pk.length, 64)
+  t.strictEqual(sk.length, 64)
   t.end()
 })
 
-test('create a 32-length secret key from a password', t => {
+test('.hashPass to create a 32-length secret key from a password', t => {
   const pass = '123123123'
   crypto.hashPass(pass, null, function (err, pwhash) {
     if (err) throw err
-    t.strictEqual(pwhash.salt.length, 16)
-    t.strictEqual(pwhash.secret.length, 32)
+    t.strictEqual(pwhash.salt.length, 32, 'salt length')
+    t.strictEqual(pwhash.secret.length, 32, 'secret length')
     crypto.hashPass(pass, pwhash.salt, function (err, pwhash2) {
       if (err) throw err
-      t.strictEqual(pwhash.salt.toString('hex'), pwhash2.salt.toString('hex'))
-      t.strictEqual(pwhash.secret.toString('hex'), pwhash2.secret.toString('hex'))
+      t.strictEqual(pwhash.salt, pwhash2.salt)
+      t.strictEqual(pwhash.secret, pwhash2.secret)
       crypto.hashPass(pass, fill(Buffer.alloc(16), 'xyz'), function (err, pwhash3) {
         if (err) throw err
-        t.notStrictEqual(pwhash2.salt.toString('hex'), pwhash3.salt.toString('hex'))
-        t.notStrictEqual(pwhash2.secret.toString('hex'), pwhash3.secret.toString('hex'))
+        t.notStrictEqual(pwhash2.salt, pwhash3.salt)
+        t.notStrictEqual(pwhash2.secret, pwhash3.secret)
         t.end()
       })
     })
   })
 })
 
-test('asymmetric encryption & decryption using a pass hash', t => {
+test('.encrypt and .decrypt for symmetric encryption & decryption using a pass hash', t => {
   const pass = 'abcabcabc'
   crypto.hashPass(pass, null, function (err, pwhash) {
     if (err) throw err
@@ -61,7 +61,7 @@ test('asymmetric encryption & decryption using a pass hash', t => {
   })
 })
 
-test('send and open an encrypted (and signed) message using pubkeys', t => {
+test('.openBox and .createBox to send and open an encrypted (and signed) message using pubkeys', t => {
   const sender = crypto.createBoxKeypair(fill(Buffer.alloc(32), 'xyz'))
   const receiver = crypto.createBoxKeypair(fill(Buffer.alloc(32), 'abc'))
   const invalidReceiver = crypto.createBoxKeypair(fill(Buffer.alloc(32), 'def'))
@@ -82,5 +82,35 @@ test('send and open an encrypted (and signed) message using pubkeys', t => {
   t.notDeepEqual(encrypted, encrypted2, 'multiple encryptions produce different nonce/ciphers')
   t.strictEqual(decrypted, decrypted2, 'multiple encryptions/decryptions produce same plaintext')
 
+  t.end()
+})
+
+test('.id to generate a simple random id', t => {
+  const id = crypto.id(32)
+  t.strictEqual(id.length, 64)
+  const id2 = crypto.id(32)
+  t.notDeepEqual(id, id2)
+  const id3 = crypto.id(64)
+  t.strictEqual(id3.length, 128)
+  t.end()
+})
+
+test('.hash a message', t => {
+  const msg = 'hola mundo'
+  const hashed = crypto.hash(msg)
+  t.strictEqual(hashed.length, 64)
+  const hashed2 = crypto.hash(msg)
+  t.strictEqual(hashed, hashed2)
+  t.end()
+})
+
+test('.hashAndSign a message with a secret key, then .unhashAndVerify it', t => {
+  const msg = 'hola mundo'
+  const {sk, pk} = crypto.createSignKeypair(fill(Buffer.alloc(32), 'xyz'))
+  const hashed = crypto.hashAndSign(msg, sk)
+  t.strictEqual(hashed.length, 256)
+  t.ok(crypto.unhashAndVerify(hashed, msg, pk))
+  t.throws(() => crypto.unhashAndVerify(hashed, msg + '!', pk))
+  t.throws(() => crypto.unhashAndVerify('a' + hashed, msg, pk))
   t.end()
 })
