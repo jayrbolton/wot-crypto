@@ -32,7 +32,7 @@ test('.hashPass to create a 32-length secret key from a password', t => {
   crypto.hashPass(pass, null, function (err, pwhash) {
     if (err) throw err
     t.strictEqual(pwhash.salt.length, 32, 'salt length')
-    t.strictEqual(pwhash.secret.length, 32, 'secret length')
+    t.strictEqual(pwhash.secret.length, 64, 'secret length')
     crypto.hashPass(pass, pwhash.salt, function (err, pwhash2) {
       if (err) throw err
       t.strictEqual(pwhash.salt, pwhash2.salt)
